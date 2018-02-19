@@ -1,5 +1,5 @@
 
-$accountToAdd = "qservice"      #Windows service user to run Sense services
+$serviceuser = "qservice"      #Windows service user to run Sense services
 $serviceuserpwd = "H@veAN1ceDay" #password for local user qservice
 #$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
 $pgadminpwd = "H@veAN1ceDay"
@@ -19,13 +19,13 @@ FPDH-APF5-8EDP-JBNQ-TRXX"
 ################################################################
 # Create local user and add it to the local Administrators group
 ################################################################
-net user $accountToAdd "$serviceuserpwd" /add /fullname:"Qlik Service User"
+net user $serviceuser "$serviceuserpwd" /add /fullname:"Qlik Service User"
 wmic useraccount WHERE "Name='$serviceuser'" set PasswordExpires=false
 net localgroup "Administrators" $serviceuser /add
 
 # Granting "Run As A Service" right to new local user
 Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
-  param([string] $accountToAdd)
+  param([string] $serviceuser)
   $tempPath = [System.IO.Path]::GetTempPath()
   $import = Join-Path -Path $tempPath -ChildPath "import.inf"
   if(Test-Path $import) { Remove-Item -Path $import -Force }
@@ -34,8 +34,8 @@ Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
   $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
   if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
   try {
-    Write-Host ("Granting SeServiceLogonRight to user account: {0} on host: {1}." -f $accountToAdd, $computerName)
-    $sid = ((New-Object System.Security.Principal.NTAccount($accountToAdd)).Translate([System.Security.Principal.SecurityIdentifier])).Value
+    Write-Host ("Granting SeServiceLogonRight to user account: {0} on host: {1}." -f $serviceuser, $computerName)
+    $sid = ((New-Object System.Security.Principal.NTAccount($serviceuser)).Translate([System.Security.Principal.SecurityIdentifier])).Value
     secedit /export /cfg $export
     $sids = (Select-String $export -Pattern "SeServiceLogonRight").Line
     foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsAService security template", "[Privilege Rights]", "SeServiceLogonRight = *$sids,*$sid")){
@@ -48,10 +48,10 @@ Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
     Remove-Item -Path $export -Force
     Remove-Item -Path $secedt -Force
   } catch {
-    Write-Host ("Failed to grant SeServiceLogonRight to user account: {0} on host: {1}." -f $accountToAdd, $computerName)
+    Write-Host ("Failed to grant SeServiceLogonRight to user account: {0} on host: {1}." -f $serviceuser, $computerName)
     $error[0]
   }
-} -ArgumentList $accountToAdd
+} -ArgumentList $serviceuser
 
 
 #########################################
@@ -96,6 +96,6 @@ if (!(Test-Path C:\install\Qlik_Sense_setup.exe)) {
 }
 Unblock-File -Path C:\install\Qlik_Sense_setup.exe
 
-Invoke-Command -ScriptBlock {Start-Process -FilePath "c:\install\Qlik_Sense_setup.exe"  -ArgumentList "-s -log c:\install\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$accountToAdd password=$serviceuserpwd  spc=$tmpfilename" -Wait -PassThru}
+Invoke-Command -ScriptBlock {Start-Process -FilePath "c:\install\Qlik_Sense_setup.exe"  -ArgumentList "-s -log c:\install\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd  spc=$tmpfilename" -Wait -PassThru}
 
 
