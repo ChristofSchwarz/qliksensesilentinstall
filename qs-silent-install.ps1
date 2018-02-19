@@ -69,6 +69,7 @@ New-NetFirewallRule -DisplayName "Qlik Sense" -Direction Inbound -LocalPort 443,
 #Create an XML file with necessary parameters for Qlik Sense silent installer
 #############################################################################
 $tmpfilename = [System.IO.Path]::GetTempFileName() + ".xml"
+$tmppath = Split-Path -parent $tmpfilename
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 <SharedPersistenceConfiguration xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`" xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`">
   <DbUserName>qliksenserepository</DbUserName>
@@ -89,13 +90,18 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 </SharedPersistenceConfiguration>";
 $myxml | Out-File "$tmpfilename" -encoding utf8
 
-# Downloading QlikSenseSErver.exe
-New-Item -ItemType directory -Path C:\install -ea Stop 
-if (!(Test-Path C:\install\Qlik_Sense_setup.exe)) {   
-    #Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/11.24/0/_MSI/Qlik_Sense_setup.exe" -OutFile "C:\install\Qlik_Sense_setup.exe"
+# Downloading QlikSenseServer.exe
+#New-Item -ItemType directory -Path C:\install -ea Stop 
+if (!(Test-Path "$tmppath\Qlik_Sense_setup.exe")) {   
+    Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.52/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
 }
-Unblock-File -Path C:\install\Qlik_Sense_setup.exe
+Unblock-File -Path "$tmppath\Qlik_Sense_setup.exe"
 
-Invoke-Command -ScriptBlock {Start-Process -FilePath "c:\install\Qlik_Sense_setup.exe"  -ArgumentList "-s -log c:\install\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd  spc=$tmpfilename" -Wait -PassThru}
+Invoke-Command -ScriptBlock {
+  Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe"  
+  -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" 
+  -Wait 
+  -PassThru
+}
 
 
