@@ -1,20 +1,25 @@
 
 $accountToAdd = "qservice"      #Windows service user to run Sense services
 $serviceuserpwd = "H@veAN1ceDay" #password for local user qservice
-$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
+#$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
 $pgadminpwd = "H@veAN1ceDay"
-$license_serial = "9999000000001138" # replace with your license number
+$license_serial = "999900000000XXXX" # replace with your license number
 $license_control = "XXXXX" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
 
 #Get the license LEF text from http://lef1.qliktech.com/manuallef
-$license_lef = "9999000000001138
+$license_lef = "999900000000XXXX
 Internal Qlik License 2018;;;
 PRODUCTLEVEL;50;;2019-01-30
 TOKENS;100;;
 TIMELIMIT;;;2019-01-30
 FPDH-APF5-8EDP-JBNQ-TRXX"
+
+# Create local user and add it to the local Administrators group
+net user $accountToAdd "$serviceuserpwd" /add /fullname:"Qlik Service User"
+wmic useraccount WHERE "Name='$serviceuser'" set PasswordExpires=false
+net localgroup "Administrators" $serviceuser /add
 
 #Create an XML file with necessary parameters for Qlik Sense silent installer
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
