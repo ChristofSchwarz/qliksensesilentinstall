@@ -16,12 +16,59 @@ TOKENS;100;;
 TIMELIMIT;;;2019-01-30
 FPDH-APF5-8EDP-JBNQ-TRXX"
 
+################################################################
 # Create local user and add it to the local Administrators group
+################################################################
 net user $accountToAdd "$serviceuserpwd" /add /fullname:"Qlik Service User"
 wmic useraccount WHERE "Name='$serviceuser'" set PasswordExpires=false
 net localgroup "Administrators" $serviceuser /add
 
+# Granting "Run As A Service" right to new local user
+Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
+  param([string] $accountToAdd)
+  $tempPath = [System.IO.Path]::GetTempPath()
+  $import = Join-Path -Path $tempPath -ChildPath "import.inf"
+  if(Test-Path $import) { Remove-Item -Path $import -Force }
+  $export = Join-Path -Path $tempPath -ChildPath "export.inf"
+  if(Test-Path $export) { Remove-Item -Path $export -Force }
+  $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
+  if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
+  try {
+    Write-Host ("Granting SeServiceLogonRight to user account: {0} on host: {1}." -f $accountToAdd, $computerName)
+    $sid = ((New-Object System.Security.Principal.NTAccount($accountToAdd)).Translate([System.Security.Principal.SecurityIdentifier])).Value
+    secedit /export /cfg $export
+    $sids = (Select-String $export -Pattern "SeServiceLogonRight").Line
+    foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsAService security template", "[Privilege Rights]", "SeServiceLogonRight = *$sids,*$sid")){
+      Add-Content $import $line
+    }
+    secedit /import /db $secedt /cfg $import
+    secedit /configure /db $secedt
+    gpupdate /force
+    Remove-Item -Path $import -Force
+    Remove-Item -Path $export -Force
+    Remove-Item -Path $secedt -Force
+  } catch {
+    Write-Host ("Failed to grant SeServiceLogonRight to user account: {0} on host: {1}." -f $accountToAdd, $computerName)
+    $error[0]
+  }
+} -ArgumentList $accountToAdd
+
+
+#########################################
+# Creating QlikShare folder and share it"
+#########################################
+New-Item -ItemType directory -Path C:\QlikShare -ea Stop 
+New-SmbShare -Name QlikShare -Path C:\QlikShare -FullAccess everyone -ea Stop
+
+###################################
+# Configuring Firewall Inbound Rule
+###################################
+New-NetFirewallRule -DisplayName "Qlik Sense" -Direction Inbound -LocalPort 443,4244,4242,80,4248  -Protocol TCP -Action Allow -ea Stop | Out-Null
+
+#############################################################################
 #Create an XML file with necessary parameters for Qlik Sense silent installer
+#############################################################################
+$tmpfilename = [System.IO.Path]::GetTempFileName() + ".xml"
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 <SharedPersistenceConfiguration xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`" xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`">
   <DbUserName>qliksenserepository</DbUserName>
@@ -40,5 +87,15 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
   <ListenAddresses>*</ListenAddresses>
   <IpRange>0.0.0.0/0</IpRange>
 </SharedPersistenceConfiguration>";
-$myxml | Out-File "c:\install\try.xml" -encoding utf8
+$myxml | Out-File "$tmpfilename" -encoding utf8
+
+# Downloading QlikSenseSErver.exe
+New-Item -ItemType directory -Path C:\install -ea Stop 
+if (!(Test-Path C:\install\Qlik_Sense_setup.exe)) {   
+    #Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/11.24/0/_MSI/Qlik_Sense_setup.exe" -OutFile "C:\install\Qlik_Sense_setup.exe"
+}
+Unblock-File -Path C:\install\Qlik_Sense_setup.exe
+
+Invoke-Command -ScriptBlock {Start-Process -FilePath "c:\install\Qlik_Sense_setup.exe"  -ArgumentList "-s -log c:\install\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$accountToAdd password=$serviceuserpwd  spc=$tmpfilename" -Wait -PassThru}
+
 
