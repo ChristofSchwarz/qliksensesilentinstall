@@ -7,6 +7,7 @@ $license_serial = "9999000000001142" # replace with your license number
 $license_control = "XXXXX" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
+$localdatapath = "C:\QlikData"
 $dirofinstaller = $PSScriptRoot  # Qlik_Sense_setup.exe is expected in the same folder as this .ps1 file
 $tmppath = Split-Path -parent ([System.IO.Path]::GetTempFileName()) 
 
@@ -75,8 +76,8 @@ Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
 #########################################
 # Creating QlikShare folder and share it"
 #########################################
-New-Item -ItemType directory -Path C:\QlikShare -ea Stop 
-New-SmbShare -Name QlikShare -Path C:\QlikShare -FullAccess everyone -ea Stop
+New-Item -ItemType directory -Path $localdatapath -ea Stop 
+New-SmbShare -Name QlikShare -Path $localdatapath -FullAccess everyone -ea Stop
 
 ###################################
 # Configuring Firewall Inbound Rule
@@ -107,18 +108,9 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 </SharedPersistenceConfiguration>";
 $myxml | Out-File "$tmpfilename" -encoding utf8
 
-# Downloading QlikSenseServer.exe
-#New-Item -ItemType directory -Path C:\install -ea Stop 
-if (!(Test-Path "$tmppath\Qlik_Sense_setup.exe")) {   
-    Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.52/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
-}
-Unblock-File -Path "$tmppath\Qlik_Sense_setup.exe"
 
 Invoke-Command -ScriptBlock {
-  Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe"  
-  -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" 
-  -Wait 
-  -PassThru
+  Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe" -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
 }
 
 
