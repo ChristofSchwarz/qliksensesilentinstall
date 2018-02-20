@@ -7,6 +7,7 @@ $license_serial = "999900000000XXXX" # replace with your license number
 $license_control = "XXXXX" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
+$dirofinstaller = $PSScriptRoot  # Qlik_Sense_setup.exe is expected in the same folder as this .ps1 file
 
 #Get the license LEF text from http://lef1.qliktech.com/manuallef
 $license_lef = "999900000000XXXX
