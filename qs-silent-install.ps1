@@ -109,8 +109,7 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 $myxml | Out-File "$tmpfilename" -encoding utf8
 
 
-Invoke-Command -ScriptBlock {
-  Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe" -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
-}
+Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe" -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
+
 
 
