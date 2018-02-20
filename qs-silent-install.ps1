@@ -1,8 +1,8 @@
 
 $serviceuser = "qservice"      #Windows service user to run Sense services
-$serviceuserpwd = "H@veAN1ceDay" #password for local user qservice
+$serviceuserpwd = "!1qayXSW23edc!" #password for local user qservice
 #$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
-$pgadminpwd = "H@veAN1ceDay"
+$pgadminpwd = "!1qayXSW23edc!"
 $license_serial = "9999000000001142" # replace with your license number
 $license_control = "XXXXX" # replace with your control key
 $license_name = "Your Name" 
@@ -32,6 +32,7 @@ If (!(Test-Path "$dirofinstaller\Qlik_Sense_setup.exe")) {
         Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.52/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
     }
     Unblock-File -Path "$tmppath\Qlik_Sense_setup.exe"
+    $dirofinstaller = $tmppath
 }
 
 
@@ -91,8 +92,7 @@ $tmpfilename = [System.IO.Path]::GetTempFileName() + ".xml"
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 <SharedPersistenceConfiguration xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`" xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`">
   <DbUserName>qliksenserepository</DbUserName>
-  <DbUserPassword>
-  </DbUserPassword>
+  <DbUserPassword>$pgadminpwd</DbUserPassword>
   <DbHost>$($env:COMPUTERNAME)</DbHost>
   <DbPort>4432</DbPort>
   <RootDir>\\$($env:COMPUTERNAME)\QlikShare</RootDir>
@@ -109,7 +109,7 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 $myxml | Out-File "$tmpfilename" -encoding utf8
 
 
-Start-Process -FilePath "$tmppath\Qlik_Sense_setup.exe" -ArgumentList "-s -log $tmppath\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
+Start-Process -FilePath "$dirofinstaller\Qlik_Sense_setup.exe" -ArgumentList "-s -log $dirofinstaller\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
 
 
 
