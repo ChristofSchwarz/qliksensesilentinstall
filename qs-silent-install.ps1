@@ -42,36 +42,70 @@ If (!(Test-Path "$dirofinstaller\Qlik_Sense_setup.exe")) {
 net user $serviceuser "$serviceuserpwd" /add /fullname:"Qlik Service User"
 wmic useraccount WHERE "Name='$serviceuser'" set PasswordExpires=false
 net localgroup "Administrators" $serviceuser /add
-
 # Granting "Run As A Service" right to new local user
-Invoke-Command -ComputerName $env:COMPUTERNAME.ToLower() -Script {
-  param([string] $serviceuser)
-  $tempPath = [System.IO.Path]::GetTempPath()
-  $import = Join-Path -Path $tempPath -ChildPath "import.inf"
-  if(Test-Path $import) { Remove-Item -Path $import -Force }
-  $export = Join-Path -Path $tempPath -ChildPath "export.inf"
-  if(Test-Path $export) { Remove-Item -Path $export -Force }
-  $secedt = Join-Path -Path $tempPath -ChildPath "secedt.sdb"
-  if(Test-Path $secedt) { Remove-Item -Path $secedt -Force }
-  try {
-    Write-Host ("Granting SeServiceLogonRight to user account: {0} on host: {1}." -f $serviceuser, $computerName)
-    $sid = ((New-Object System.Security.Principal.NTAccount($serviceuser)).Translate([System.Security.Principal.SecurityIdentifier])).Value
-    secedit /export /cfg $export
-    $sids = (Select-String $export -Pattern "SeServiceLogonRight").Line
-    foreach ($line in @("[Unicode]", "Unicode=yes", "[System Access]", "[Event Audit]", "[Registry Values]", "[Version]", "signature=`"`$CHICAGO$`"", "Revision=1", "[Profile Description]", "Description=GrantLogOnAsAService security template", "[Privilege Rights]", "SeServiceLogonRight = *$sids,*$sid")){
-      Add-Content $import $line
-    }
-    secedit /import /db $secedt /cfg $import
-    secedit /configure /db $secedt
-    gpupdate /force
-    Remove-Item -Path $import -Force
-    Remove-Item -Path $export -Force
-    Remove-Item -Path $secedt -Force
-  } catch {
-    Write-Host ("Failed to grant SeServiceLogonRight to user account: {0} on host: {1}." -f $serviceuser, $computerName)
-    $error[0]
-  }
-} -ArgumentList $serviceuser
+
+$sidstr = $null
+try {
+	$ntprincipal = new-object System.Security.Principal.NTAccount "$serviceuser"
+	$sid = $ntprincipal.Translate([System.Security.Principal.SecurityIdentifier])
+	$sidstr = $sid.Value.ToString()
+} catch {
+	$sidstr = $null
+}
+Write-Host "Account: $($serviceuser)" -ForegroundColor DarkCyan
+if( [string]::IsNullOrEmpty($sidstr) ) {
+	Write-Host "Account not found!" -ForegroundColor Red
+	exit -1
+}
+Write-Host "Account SID: $($sidstr)" -ForegroundColor DarkCyan
+$tmp = [System.IO.Path]::GetTempFileName()
+Write-Host "Export current Local Security Policy" -ForegroundColor DarkCyan
+secedit.exe /export /cfg "$($tmp)" 
+
+$c = Get-Content -Path $tmp 
+$currentSetting = ""
+foreach($s in $c) {
+	if( $s -like "SeServiceLogonRight*") {
+		$x = $s.split("=",[System.StringSplitOptions]::RemoveEmptyEntries)
+		$currentSetting = $x[1].Trim()
+	}
+}
+
+if( $currentSetting -notlike "*$($sidstr)*" ) {
+	Write-Host "Modify Setting ""Logon as a Service""" -ForegroundColor DarkCyan
+	if( [string]::IsNullOrEmpty($currentSetting) ) {
+		$currentSetting = "*$($sidstr)"
+	} else {
+		$currentSetting = "*$($sidstr),$($currentSetting)"
+	}
+	Write-Host "$currentSetting"
+	$outfile = @"
+[Unicode]
+Unicode=yes
+[Version]
+signature="`$CHICAGO`$"
+Revision=1
+[Privilege Rights]
+SeServiceLogonRight = $($currentSetting)
+"@
+
+	$tmp2 = [System.IO.Path]::GetTempFileName()	
+	Write-Host "Import new settings to Local Security Policy" -ForegroundColor DarkCyan
+	$outfile | Set-Content -Path $tmp2 -Encoding Unicode -Force
+	#notepad.exe $tmp2
+	Push-Location (Split-Path $tmp2)
+	
+	try {
+		secedit.exe /configure /db "secedit.sdb" /cfg "$($tmp2)" /areas USER_RIGHTS 
+		#write-host "secedit.exe /configure /db ""secedit.sdb"" /cfg ""$($tmp2)"" /areas USER_RIGHTS "
+	} finally {	
+		Pop-Location
+	}
+} else {
+	Write-Host "NO ACTIONS REQUIRED! Account already in ""Logon as a Service""" -ForegroundColor DarkCyan
+}
+Write-Host "Done." -ForegroundColor DarkCyan
+
 
 
 #########################################
