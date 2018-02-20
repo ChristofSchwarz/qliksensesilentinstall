@@ -3,19 +3,36 @@ $serviceuser = "qservice"      #Windows service user to run Sense services
 $serviceuserpwd = "H@veAN1ceDay" #password for local user qservice
 #$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
 $pgadminpwd = "H@veAN1ceDay"
-$license_serial = "999900000000XXXX" # replace with your license number
+$license_serial = "9999000000001142" # replace with your license number
 $license_control = "XXXXX" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
 $dirofinstaller = $PSScriptRoot  # Qlik_Sense_setup.exe is expected in the same folder as this .ps1 file
+$tmppath = Split-Path -parent ([System.IO.Path]::GetTempFileName()) 
 
 #Get the license LEF text from http://lef1.qliktech.com/manuallef
-$license_lef = "999900000000XXXX
+$license_lef = "9999000000001142
 Internal Qlik License 2018;;;
+Qlik Sense Enterprise;;;
+Possible to use for external;Beta for Analyst evaluation;;
 PRODUCTLEVEL;50;;2019-01-30
-TOKENS;100;;
+TOKENS;50;;
 TIMELIMIT;;;2019-01-30
-FPDH-APF5-8EDP-JBNQ-TRXX"
+OVERAGE;NO;;
+3CBE-G3S2-26UE-GRYX-VJDP"
+
+################################################################
+# Finding or downloading Qlik_Sense_server.exe (installer)
+################################################################
+If (!(Test-Path "$dirofinstaller\Qlik_Sense_setup.exe")) {
+    echo "Qlik_Sense_setup.exe not found in $dirofinstaller; trying to download ..."
+    # Downloading QlikSenseServer.exe
+    if (!(Test-Path "$tmppath\Qlik_Sense_setup.exe")) {   
+        Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.52/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
+    }
+    Unblock-File -Path "$tmppath\Qlik_Sense_setup.exe"
+}
+
 
 ################################################################
 # Create local user and add it to the local Administrators group
@@ -70,7 +87,6 @@ New-NetFirewallRule -DisplayName "Qlik Sense" -Direction Inbound -LocalPort 443,
 #Create an XML file with necessary parameters for Qlik Sense silent installer
 #############################################################################
 $tmpfilename = [System.IO.Path]::GetTempFileName() + ".xml"
-$tmppath = Split-Path -parent $tmpfilename
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 <SharedPersistenceConfiguration xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`" xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`">
   <DbUserName>qliksenserepository</DbUserName>
