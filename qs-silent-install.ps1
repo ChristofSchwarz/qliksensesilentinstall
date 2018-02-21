@@ -145,6 +145,16 @@ $myxml | Out-File "$tmpfilename" -encoding utf8
 
 Start-Process -FilePath "$dirofinstaller\Qlik_Sense_setup.exe" -ArgumentList "-s -log $dirofinstaller\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
 
+# Wait for Qlik Services to come up.
+Write-Log -Message "Connecting to the Qlik Sense Repository Service"
+$svc = Get-Service -Name QlikSenseRepositoryService
+while ($svc.Status -ne "Running")
+{
+	Start-Sleep -seconds 10
+	$svc = Get-Service -Name QlikSenseRepositoryService
+}
+Write-Log -Message "Waiting 90 seconds before attempting to connect to Central Node"
+Start-Sleep 90
 
 # Next: Install and user Qlik-CLI from Open Source https://github.com/ahaydon/Qlik-Cli 
 Connect-Qlik $env:COMPUTERNAME -UseDefaultCredentials
