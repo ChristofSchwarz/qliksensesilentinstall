@@ -1,10 +1,20 @@
+$execpolicy_before = Get-ExecutionPolicy
+Set-ExecutionPolicy Unrestricted
+
+#Localization: English Windows
+$localadmingroupname = "Administrators"
+$shareaccessto = "everyone"
+
+#Localization: German Windows
+# $localadmingroupname = "Administratoren" 
+# $shareaccessto = "Jeder"
 
 $serviceuser = "qservice"      #Windows service user to run Sense services
 $serviceuserpwd = "!1qayXSW23edc!" #password for local user qservice
 #$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
 $pgadminpwd = "!1qayXSW23edc!"
 $license_serial = "9999000000001142" # replace with your license number
-$license_control = "XXXXX" # replace with your control key
+$license_control = "?????" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
 $localdatapath = "C:\QlikData"
@@ -36,12 +46,12 @@ If (!(Test-Path "$dirofinstaller\Qlik_Sense_setup.exe")) {
 }
 
 
-################################################################
-# Create local user and add it to the local Administrators group
-################################################################
+###########################################################################
+Write-Host "Create local user and add it to the local Administrators group"
+###########################################################################
 net user $serviceuser "$serviceuserpwd" /add /fullname:"Qlik Service User"
 wmic useraccount WHERE "Name='$serviceuser'" set PasswordExpires=false
-net localgroup "Administrators" $serviceuser /add
+net localgroup $localadmingroupname $serviceuser /add
 # Granting "Run As A Service" right to new local user
 
 $sidstr = $null
@@ -109,20 +119,20 @@ Write-Host "Done." -ForegroundColor DarkCyan
 
 
 #########################################
-# Creating QlikShare folder and share it"
+Write-Host "Creating QlikShare folder and share it"
 #########################################
-New-Item -ItemType directory -Path $localdatapath -ea Stop 
-New-SmbShare -Name QlikShare -Path $localdatapath -FullAccess everyone -ea Stop
+New-Item -ItemType directory -Path $localdatapath 
+New-SmbShare -Name QlikShare -Path $localdatapath -FullAccess $shareaccessto
 
-###################################
-# Configuring Firewall Inbound Rule
-###################################
+##############################################
+Write-Host "Configuring Firewall Inbound Rule"
+##############################################
 New-NetFirewallRule -DisplayName "Qlik Sense" -Direction Inbound -LocalPort 443,4244,4242,80,4248  -Protocol TCP -Action Allow -ea Stop | Out-Null
 
 #############################################################################
 #Create an XML file with necessary parameters for Qlik Sense silent installer
 #############################################################################
-$tmpfilename = [System.IO.Path]::GetTempFileName() + ".xml"
+$tmpfilename = $dirofinstaller + "\qsense_install_settings.xml"
 $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 <SharedPersistenceConfiguration xmlns:xsi=`"http://www.w3.org/2001/XMLSchema-instance`" xmlns:xsd=`"http://www.w3.org/2001/XMLSchema`">
   <DbUserName>qliksenserepository</DbUserName>
@@ -143,17 +153,17 @@ $myxml = "<?xml version=`"1.0`" encoding=`"UTF-8`"?>
 $myxml | Out-File "$tmpfilename" -encoding utf8
 
 
-Start-Process -FilePath "$dirofinstaller\Qlik_Sense_setup.exe" -ArgumentList "-s -log $dirofinstaller\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=$tmpfilename" -Wait -PassThru
+Start-Process -FilePath "$dirofinstaller\Qlik_Sense_setup.exe" -ArgumentList "-s -log $dirofinstaller\logqlik.txt dbpassword=$pgadminpwd hostname=$($env:COMPUTERNAME) userwithdomain=$($env:computername)\$serviceuser password=$serviceuserpwd spc=""$tmpfilename""" -Wait -PassThru
 
 # Wait for Qlik Services to come up.
-Write-Log -Message "Connecting to the Qlik Sense Repository Service"
+Write-Host "Connecting to the Qlik Sense Repository Service"
 $svc = Get-Service -Name QlikSenseRepositoryService
 while ($svc.Status -ne "Running")
 {
 	Start-Sleep -seconds 10
 	$svc = Get-Service -Name QlikSenseRepositoryService
 }
-Write-Log -Message "Waiting 90 seconds before attempting to connect to Central Node"
+Write-Host "Waiting 90 seconds before attempting to connect to Central Node"
 Start-Sleep 90
 
 # Next: Install and user Qlik-CLI from Open Source https://github.com/ahaydon/Qlik-Cli 
@@ -193,5 +203,4 @@ Set-QlikLicense -serial $license_serial -control $license_control -name "$licens
 #Start-QlikTask -id $qtask.id
 
 Write-Host "Done." -ForegroundColor DarkCyan
-
 
