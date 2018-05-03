@@ -37,9 +37,10 @@ OVERAGE;NO;;
 ################################################################
 If (!(Test-Path "$dirofinstaller\Qlik_Sense_setup.exe")) {
     echo "Qlik_Sense_setup.exe not found in $dirofinstaller; trying to download ..."
-    # Downloading QlikSenseServer.exe
+    
     if (!(Test-Path "$tmppath\Qlik_Sense_setup.exe")) {   
-        Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.52/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
+    	# Downloading QlikSenseServer.exe April 2018 release
+        Invoke-WebRequest "https://da3hntz84uekx.cloudfront.net/QlikSense/12.16/0/_MSI/Qlik_Sense_setup.exe" -OutFile "$tmppath\Qlik_Sense_setup.exe"
     }
     Unblock-File -Path "$tmppath\Qlik_Sense_setup.exe"
     $dirofinstaller = $tmppath
