@@ -168,6 +168,9 @@ Write-Host "Waiting 90 seconds before attempting to connect to Central Node"
 Start-Sleep 90
 
 # Next: Install and user Qlik-CLI from Open Source https://github.com/ahaydon/Qlik-Cli 
+Get-PackageProvider -Name NuGet -ForceBootstrap
+Install-Module Qlik-Cli
+Import-Module Qlik-Cli
 Connect-Qlik $env:COMPUTERNAME -UseDefaultCredentials
 # Apply license
 Set-QlikLicense -serial $license_serial -control $license_control -name "$license_name" -organization "$license_org" -lef "$license_lef"
