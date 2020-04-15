@@ -13,8 +13,8 @@ $serviceuser = "qservice"      #Windows service user to run Sense services
 $serviceuserpwd = "!1qayXSW23edc!" #password for local user qservice
 #$serviceuserpwd_enc = ConvertTo-SecureString -String $serviceuserpwd -AsPlainText -Force 
 $pgadminpwd = "!1qayXSW23edc!"
-$license_serial = "9999000000001142" # replace with your license number
-$license_control = "?????" # replace with your control key
+$license_serial = "1234567890121142" # replace with your license number
+$license_control = "12345" # replace with your control key
 $license_name = "Your Name" 
 $license_org = "Your Company"
 $localdatapath = "C:\QlikData"
@@ -22,15 +22,14 @@ $dirofinstaller = $PSScriptRoot  # Qlik_Sense_setup.exe is expected in the same 
 $tmppath = Split-Path -parent ([System.IO.Path]::GetTempFileName()) 
 
 #Get the license LEF text from http://lef1.qliktech.com/manuallef
-$license_lef = "9999000000001142
-Internal Qlik License 2018;;;
+$license_lef = "1234567890121142
 Qlik Sense Enterprise;;;
 Possible to use for external;Beta for Analyst evaluation;;
-PRODUCTLEVEL;50;;2019-01-30
-TOKENS;50;;
-TIMELIMIT;;;2019-01-30
+PRODUCTLEVEL;XX;;####-##-##
+TOKENS;XX;;
+TIMELIMIT;;;####-##-##
 OVERAGE;NO;;
-3CBE-G3S2-26UE-GRYX-VJDP"
+XXXX-XXXX-XXXX-XXXX-XXXX"
 
 ################################################################
 # Finding or downloading Qlik_Sense_server.exe (installer)
